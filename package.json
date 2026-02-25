@@ -1,0 +1,30 @@
+{
+  "name": "wx-format",
+  "version": "1.4.0",
+  "description": "微信公众号 Markdown 排版工具 - 将 Markdown 转换为微信兼容的内联样式 HTML",
+  "main": "index.js",
+  "bin": {
+    "wx-format": "./index.js"
+  },
+  "scripts": {
+    "test": "node index.js test/sample.md -t simple -o test/output.html"
+  },
+  "keywords": [
+    "wechat",
+    "markdown",
+    "formatter",
+    "公众号"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "clipboardy": "^4.0.0",
+    "commander": "^13.1.0",
+    "duck-duck-scrape": "^2.2.7",
+    "front-matter": "^4.0.2",
+    "highlight.js": "^11.11.1",
+    "https-proxy-agent": "^7.0.6",
+    "juice": "^11.0.0",
+    "marked": "^17.0.2",
+    "openai": "^4.104.0"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "custom-test",
+  "label": "自定义测试",
+  "base": {
+    "color": "#2d3748",
+    "fontSize": "16px",
+    "lineHeight": "1.9",
+    "fontFamily": "Georgia, serif"
+  },
+  "elements": {
+    "h1": "font-size:28px;font-weight:bold;color:#e53e3e;text-align:center;margin:30px 0 20px;",
+    "h2": "font-size:22px;font-weight:bold;color:#dd6b20;margin:25px 0 15px;border-left:4px solid #dd6b20;padding-left:12px;",
+    "p": "margin:12px 0;line-height:1.9;color:#2d3748;",
+    "code_block": "background:#1a1a2e;color:#e2e8f0;padding:16px;border-radius:8px;font-size:13px;line-height:1.6;overflow-x:auto;font-family:monospace;"
+  }
+}
