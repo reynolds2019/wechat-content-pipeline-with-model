@@ -185,16 +185,9 @@ ${outline}
   },
 };
 
-function buildOutlinePrompt(type, viewpoints, { researchMaterial, titleCandidates = 5 } = {}) {
+function buildOutlinePrompt(type, viewpoints, { titleCandidates = 5 } = {}) {
   const arch = ARCHETYPES[type] || ARCHETYPES.opinion;
   let prompt = arch.outline(viewpoints);
-
-  if (researchMaterial) {
-    prompt = prompt.replace(
-      /直接输出大纲/,
-      `【素材参考】\n以下是调研收集的素材，请在大纲中合理引用：\n${researchMaterial}\n\n直接输出大纲`
-    );
-  }
 
   if (titleCandidates > 0) {
     prompt += `\n\n【标题候选】\n请在大纲开头提供 ${titleCandidates} 个标题候选，按吸引力从高到低排列，每个标题附一句话说明选择理由。\n格式：\n标题候选1: XXX（理由）\n标题候选2: XXX（理由）\n...\n然后选择最佳标题作为正式标题。`;

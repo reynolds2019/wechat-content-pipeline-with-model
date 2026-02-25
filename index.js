@@ -193,7 +193,6 @@ program
   .option('--polish-type <type>', '润色类型', 'deai')
   .option('-t, --theme <name>', '排版主题 (触发排版转换)')
   .option('-o, --output <path>', '输出 HTML 文件路径')
-  .option('--research <path>', '调研素材文件路径')
   .option('--outline-only', '仅输出大纲，不扩写全文')
   .option('--title-candidates <n>', '标题候选数量', '5')
   .action(async (viewpoints, options) => {
@@ -216,7 +215,6 @@ program
       apiKey: options.apiKey,
       dryRun: options.dryRun,
       noConfirm: !options.confirm,
-      research: options.research,
       outlineOnly: options.outlineOnly,
       titleCandidates: parseInt(options.titleCandidates),
     });
@@ -250,31 +248,6 @@ program
     } else {
       process.stdout.write(result + '\n');
     }
-  });
-
-// Research subcommand
-program
-  .command('research [topic]')
-  .description('调研素材收集：热点数据 + AI 深度调研')
-  .option('--niche <keywords>', '领域关键词 (逗号分隔)')
-  .option('--provider <name>', 'AI provider (gemini|deepseek|openai|claude)', 'gemini')
-  .option('--api-key <key>', 'AI API Key')
-  .option('--dry-run', '仅打印调研 prompt')
-  .option('--extract', '启用 NewsCrawler 全文提取')
-  .option('-o, --output <path>', '输出文件路径')
-  .action(async (topic, options) => {
-    if (!topic) { console.error('请提供调研主题'); process.exit(1); }
-    const { runResearch } = require('./researcher');
-    const result = await runResearch({
-      topic,
-      niche: options.niche,
-      provider: options.provider,
-      apiKey: options.apiKey,
-      dryRun: options.dryRun,
-      extract: options.extract,
-      output: options.output ? require('path').resolve(options.output) : undefined,
-    });
-    if (result && !options.output) process.stdout.write(result + '\n');
   });
 
 program.parse();

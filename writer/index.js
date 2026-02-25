@@ -1,8 +1,6 @@
 /**
  * 写作流程编排: 大纲→确认→全文
  */
-const fs = require('fs');
-const path = require('path');
 const readline = require('readline');
 const { PROVIDERS, createClient, callAI } = require('../providers');
 const { buildOutlinePrompt, buildExpandPrompt, listArchetypes } = require('./prompts');
@@ -17,19 +15,11 @@ async function askConfirm(prompt) {
   });
 }
 
-async function runWrite({ viewpoints, type = 'opinion', provider = 'gemini', apiKey, dryRun, noConfirm, research, outlineOnly, titleCandidates = 5 }) {
+async function runWrite({ viewpoints, type = 'opinion', provider = 'gemini', apiKey, dryRun, noConfirm, outlineOnly, titleCandidates = 5 }) {
   const config = PROVIDERS[provider];
   if (!config) throw new Error(`不支持的 provider: ${provider}。可选: ${Object.keys(PROVIDERS).join(', ')}`);
 
-  let researchMaterial;
-  if (research) {
-    const researchPath = path.resolve(research);
-    if (!fs.existsSync(researchPath)) throw new Error(`调研素材文件不存在: ${researchPath}`);
-    researchMaterial = fs.readFileSync(researchPath, 'utf-8').trim();
-    console.error(`已加载调研素材: ${researchPath} (${researchMaterial.length} 字)`);
-  }
-
-  const outlinePrompt = buildOutlinePrompt(type, viewpoints, { researchMaterial, titleCandidates });
+  const outlinePrompt = buildOutlinePrompt(type, viewpoints, { titleCandidates });
 
   if (dryRun) {
     console.log('=== DRY RUN: 写作 Prompt ===');
