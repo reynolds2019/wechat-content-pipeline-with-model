@@ -147,16 +147,20 @@ class ImageGenerator {
     return { title, summary: summary || title };
   }
 
-  /** 解析 markdown 中的 h2 章节 */
+  /** 解析 markdown 中的章节标题（h2 或 h3） */
   _extractChapters(markdown) {
     const lines = markdown.split('\n');
     const chapters = [];
     let current = null;
+    // 检测文章使用的章节级别：优先 h2，没有则用 h3
+    const hasH2 = lines.some(l => /^## [^#]/.test(l));
+    const headingRe = hasH2 ? /^## ([^#].*)/ : /^### ([^#].*)/;
     for (const line of lines) {
-      if (line.startsWith('## ')) {
+      const m = line.match(headingRe);
+      if (m) {
         if (current) chapters.push(current);
         current = {
-          title: line.replace(/^##\s*/, '').replace(/[—–\-].+$/, '').trim(),
+          title: m[1].replace(/[—–\-].+$/, '').trim(),
           body: [],
         };
       } else if (current) {
@@ -282,10 +286,10 @@ class ImageGenerator {
           result = result.slice(0, pos) + '\n' + imgTag + '\n' + result.slice(pos);
         }
       } else {
-        // 章节图：插入对应 h2 之前
+        // 章节图：插入对应 h2/h3 之前
         const escaped = item.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const h2Regex = new RegExp(`(<h2[^>]*>(?:<span[^>]*>[^<]*</span>)?\\s*${escaped})`);
-        const match = result.match(h2Regex);
+        const hRegex = new RegExp(`(<h[23][^>]*>(?:<span[^>]*>[^<]*</span>)?\\s*${escaped})`);
+        const match = result.match(hRegex);
         if (match && match.index !== undefined) {
           result = result.slice(0, match.index) + imgTag + '\n' + result.slice(match.index);
         }
