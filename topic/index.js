@@ -1,18 +1,14 @@
 /**
  * 选题功能入口
- * 聚合热点 → 过滤 → AI分析 → 输出
+ * 纯 AI 选题：根据领域关键词直接生成选题建议
  */
 
 const fs = require('fs');
-const { fetchTrending, SOURCES } = require('./sources');
 const { analyzeTopic } = require('./analyzer');
 
 async function runTopic(options = {}) {
   const {
-    niche,
-    sources: srcStr,
-    count = 20,
-    analyze = false,
+    niche = '通用',
     provider = 'gemini',
     apiKey,
     dryRun = false,
@@ -21,43 +17,39 @@ async function runTopic(options = {}) {
     format = 'table',
   } = options;
 
-  // Parse sources
-  const sourceKeys = srcStr
-    ? srcStr.split(',').map(s => s.trim())
-    : Object.keys(SOURCES);
+  console.log(`正在生成选题建议 [领域: ${niche}] ...`);
 
-  console.log(`正在获取热点数据 [${sourceKeys.join(', ')}] ...`);
-  let topics = await fetchTrending(sourceKeys);
+  const result = await analyzeTopic({ niche, provider, apiKey, dryRun });
 
-  if (topics.length === 0) {
-    console.log('未获取到任何热点数据，请检查网络连接。');
+  if (dryRun) return;
+
+  if (!result) {
+    console.log('未获取到选题建议。');
     return;
   }
 
-  // Filter by niche keyword
-  if (niche) {
-    const keywords = niche.split(',').map(k => k.trim().toLowerCase());
-    const filtered = topics.filter(t =>
-      keywords.some(k => t.title.toLowerCase().includes(k))
-    );
-    if (filtered.length > 0) topics = filtered;
-    else console.log(`未找到与"${niche}"相关的热点，显示全部结果。`);
+  // JSON output
+  if (json) {
+    const structured = {
+      metadata: { niche, timestamp: new Date().toISOString(), provider },
+      suggestions: result,
+    };
+    const jsonStr = JSON.stringify(structured, null, 2);
+    if (output) {
+      fs.writeFileSync(output, jsonStr, 'utf-8');
+      console.log(`结果已保存: ${output}`);
+    } else {
+      console.log(jsonStr);
+    }
+    return structured;
   }
 
-  // Limit count
-  topics = topics.slice(0, count);
-
-  // Structured format output
+  // Structured format
   if (format === 'structured') {
     const structured = {
-      metadata: { niche: niche || null, timestamp: new Date().toISOString(), sources: sourceKeys },
-      topics: topics.map(t => ({ title: t.title, source: t.source, heat: t.heat, url: t.url })),
+      metadata: { niche, timestamp: new Date().toISOString(), provider },
+      suggestions: result,
     };
-    if (analyze) {
-      console.log('正在进行 AI 选题分析...\n');
-      const result = await analyzeTopic({ topics, niche, provider, apiKey, dryRun });
-      if (result) structured.analyzed = result;
-    }
     const jsonStr = JSON.stringify(structured, null, 2);
     if (output) {
       fs.writeFileSync(output, jsonStr, 'utf-8');
@@ -68,34 +60,13 @@ async function runTopic(options = {}) {
     return structured;
   }
 
-  // Output
-  if (json) {
-    console.log(JSON.stringify(topics, null, 2));
-  } else {
-    console.log(`\n热点话题 (共 ${topics.length} 条):\n`);
-    console.log('序号  来源    热度      标题');
-    console.log('─'.repeat(60));
-    topics.forEach((t, i) => {
-      const src = t.source.padEnd(6);
-      const heat = String(t.heat).padStart(8);
-      console.log(`${String(i + 1).padStart(3)}   ${src}  ${heat}  ${t.title}`);
-    });
-  }
+  // Default text output
+  console.log(`\n选题建议 [领域: ${niche}]:\n`);
+  console.log(result);
 
-  // Save to file (table/json mode)
-  if (output && !analyze) {
-    const data = json
-      ? JSON.stringify(topics, null, 2)
-      : topics.map(t => `${t.source}\t${t.heat}\t${t.title}`).join('\n');
-    fs.writeFileSync(output, data, 'utf-8');
-    console.log(`结果已保存: ${output}`);
-  }
-
-  // AI analysis
-  if (analyze) {
-    console.log('\n正在进行 AI 选题分析...\n');
-    const result = await analyzeTopic({ topics, niche, provider, apiKey, dryRun });
-    if (result) console.log(result);
+  if (output) {
+    fs.writeFileSync(output, result, 'utf-8');
+    console.log(`\n结果已保存: ${output}`);
   }
 }
 

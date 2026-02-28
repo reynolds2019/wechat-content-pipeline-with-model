@@ -2,6 +2,7 @@ const { Marked } = require('marked');
 const juice = require('juice');
 const hljs = require('highlight.js');
 const { getTheme } = require('./themes');
+const katex = require('katex');
 
 // hljs class → inline style mapping (One Dark theme colors)
 const DEFAULT_HLJS_STYLES = {
@@ -42,7 +43,12 @@ class WxConverter {
     this._inBlockquote = false;
     this.normalizeText = options.normalize || false;
     this.important = options.important || false;
+    this.enableMath = options.math || false;
+    this.enableMermaid = options.mermaid || false;
+    this.enableToc = options.toc || false;
+    this.headings = []; // collected during rendering for TOC
     this.marked = new Marked();
+    this._setupExtensions();
     this._setupRenderer();
   }
 
@@ -60,6 +66,14 @@ class WxConverter {
     );
   }
 
+  _setupExtensions() {
+    // Footnotes extension (marked-footnote)
+    try {
+      const markedFootnote = require('marked-footnote');
+      this.marked.use(markedFootnote());
+    } catch { /* marked-footnote not available, skip */ }
+  }
+
   _setupRenderer() {
     const self = this;
     const s = this.theme.elements;
@@ -70,19 +84,24 @@ class WxConverter {
           const text = this.parser.parseInline(tokens);
           const tag = `h${depth}`;
           const style = s[tag] || s.h3;
+          // Collect headings for TOC
+          const plainText = text.replace(/<[^>]+>/g, '');
+          const id = `heading-${self.headings.length}`;
+          self.headings.push({ depth, text: plainText, id });
+
           if (depth === 1 && s.h1_wrapper) {
-            return `<section style="${s.h1_wrapper}"><h1 style="${style}">${text}</h1></section>\n`;
+            return `<section style="${s.h1_wrapper}"><h1 id="${id}" style="${style}">${text}</h1></section>\n`;
           }
           if (depth === 2 && s.h2_badge) {
             self.h2Count++;
             const num = String(self.h2Count).padStart(2, '0');
-            return `<h2 style="${style}"><span style="${s.h2_badge}">${num}</span>${text}</h2>\n`;
+            return `<h2 id="${id}" style="${style}"><span style="${s.h2_badge}">${num}</span>${text}</h2>\n`;
           }
           if (depth === 3 && s.h3_icon) {
             const icon = s.h3_icon_text || '◆';
-            return `<h3 style="${style}"><span style="${s.h3_icon}">${icon}</span>${text}</h3>\n`;
+            return `<h3 id="${id}" style="${style}"><span style="${s.h3_icon}">${icon}</span>${text}</h3>\n`;
           }
-          return `<${tag} style="${style}">${text}</${tag}>\n`;
+          return `<${tag} id="${id}" style="${style}">${text}</${tag}>\n`;
         },
 
         paragraph({ tokens }) {
@@ -101,6 +120,15 @@ class WxConverter {
           self._inBlockquote = true;
           const body = this.parser.parse(tokens);
           self._inBlockquote = false;
+
+          // GitHub-style alerts: > [!NOTE], > [!WARNING], etc.
+          const alertMatch = body.match(/\[!(NOTE|WARNING|TIP|IMPORTANT|CAUTION)\]/);
+          if (alertMatch) {
+            const alertType = alertMatch[1];
+            const alertBody = body.replace(/\[!(NOTE|WARNING|TIP|IMPORTANT|CAUTION)\](<br>)?/g, '').trim();
+            return self._renderAlert(alertType, alertBody);
+          }
+
           const icon = s.blockquote_icon ? `<span style="${s.blockquote_icon}">\u201C</span>` : '';
           return `<blockquote style="${s.blockquote}">${icon}${body}</blockquote>\n`;
         },
@@ -158,6 +186,10 @@ class WxConverter {
         },
 
         code({ text, lang }) {
+          // Mermaid diagram support
+          if (lang === 'mermaid' && self.enableMermaid) {
+            return `<div class="mermaid">${text}</div>\n`;
+          }
           let highlighted;
           if (lang && hljs.getLanguage(lang)) {
             highlighted = hljs.highlight(text, { language: lang }).value;
@@ -225,6 +257,61 @@ class WxConverter {
     return html;
   }
 
+  _renderAlert(type, body) {
+    const configs = {
+      NOTE: { icon: '\u2139\ufe0f', label: 'Note', bg: '#f0f7ff', border: '#4a90d9', color: '#1a56db' },
+      TIP: { icon: '\ud83d\udca1', label: 'Tip', bg: '#f0fdf4', border: '#22c55e', color: '#166534' },
+      IMPORTANT: { icon: '\u2757', label: 'Important', bg: '#faf5ff', border: '#a855f7', color: '#7c3aed' },
+      WARNING: { icon: '\u26a0\ufe0f', label: 'Warning', bg: '#fffbeb', border: '#f59e0b', color: '#b45309' },
+      CAUTION: { icon: '\ud83d\udd34', label: 'Caution', bg: '#fef2f2', border: '#ef4444', color: '#dc2626' },
+    };
+    const c = configs[type] || configs.NOTE;
+    return `<div style="background:${c.bg};border-left:4px solid ${c.border};padding:12px 16px;margin:16px 0;border-radius:4px;">` +
+      `<p style="margin:0 0 4px 0;font-weight:bold;color:${c.color};">${c.icon} ${c.label}</p>` +
+      `<div style="color:#333;line-height:1.6;">${body}</div>` +
+      `</div>\n`;
+  }
+
+  _renderToc() {
+    if (this.headings.length === 0) return '';
+    let html = '<nav style="background:#f8f9fa;border:1px solid #e9ecef;border-radius:6px;padding:16px 20px;margin:0 0 24px 0;">';
+    html += '<p style="font-weight:bold;margin:0 0 8px 0;color:#333;">目录</p>';
+    for (const h of this.headings) {
+      const indent = (h.depth - 1) * 16;
+      html += `<p style="margin:4px 0;padding-left:${indent}px;line-height:1.6;"><a href="#${h.id}" style="color:#4a90d9;text-decoration:none;">${h.text}</a></p>`;
+    }
+    html += '</nav>';
+    return html;
+  }
+
+  _processMath(text) {
+    // Block math: $$...$$
+    text = text.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
+      try {
+        return katex.renderToString(math.trim(), { displayMode: true, throwOnError: false });
+      } catch { return `<pre>${math}</pre>`; }
+    });
+    // Inline math: $...$  (avoid matching $$)
+    text = text.replace(/(?<!\$)\$(?!\$)([^\n$]+?)\$(?!\$)/g, (_, math) => {
+      try {
+        return katex.renderToString(math.trim(), { displayMode: false, throwOnError: false });
+      } catch { return `<code>${math}</code>`; }
+    });
+    return text;
+  }
+
+  _getExternalResources() {
+    const resources = [];
+    if (this.enableMath) {
+      resources.push('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">');
+    }
+    if (this.enableMermaid) {
+      resources.push('<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>');
+      resources.push('<script>mermaid.initialize({startOnLoad:true});</script>');
+    }
+    return resources;
+  }
+
   _addImportant(styleStr) {
     return styleStr.replace(/;/g, ' !important;').replace(/ !important;$/, ' !important;');
   }
@@ -236,11 +323,17 @@ class WxConverter {
     this.h2Count = 0;
     this.isFirstParagraph = true;
     this._inBlockquote = false;
+    this.headings = [];
 
     // Normalize text if enabled
     if (this.normalizeText) {
       const { normalize } = require('./normalizer');
       markdown = normalize(markdown);
+    }
+
+    // Pre-process math (before marked parsing to protect math from markdown)
+    if (this.enableMath) {
+      markdown = this._processMath(markdown);
     }
 
     // Add !important to all theme styles if enabled
@@ -254,13 +347,15 @@ class WxConverter {
     }
 
     const body = this.marked.parse(markdown);
+    const toc = this.enableToc ? this._renderToc() : '';
     const footnotes = this._renderFootnotes();
     const b = this.theme.base;
     // Use single quotes for font-family to avoid breaking style="" attribute
     const fontFamily = b.fontFamily.replace(/"/g, "'");
 
     const sectionBg = this.theme.elements.section_bg ? `;${this.theme.elements.section_bg}` : '';
-    const html = `<section style="color:${b.color};font-size:${b.fontSize};line-height:${b.lineHeight};font-family:${fontFamily};padding:10px 0;text-align:justify${sectionBg}">${body}${footnotes}</section>`;
+    const externalResources = this._getExternalResources().join('\n');
+    const html = `${externalResources}<section style="color:${b.color};font-size:${b.fontSize};line-height:${b.lineHeight};font-family:${fontFamily};padding:10px 0;text-align:justify${sectionBg}">${toc}${body}${footnotes}</section>`;
 
     // juice inlines any remaining CSS (safety net)
     return juice(html);

@@ -1,4 +1,5 @@
 node_modules/
-.DS_Store
 *.html
-/tmp/
+.DS_Store
+article-raw.md
+RESEARCH.md

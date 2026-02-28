@@ -112,7 +112,11 @@ class ContentPolisher {
       for (const type of types) {
         console.log(`润色链: 执行 [${type}] ...`);
         this.polishType = type;
-        result = await this._polishSingle(result);
+        if (type === 'deai') {
+          result = await this.polish(result);  // 递归调用，触发deai 3步展开
+        } else {
+          result = await this._polishSingle(result);
+        }
         if (this.dryRun) return result;
       }
       return result;

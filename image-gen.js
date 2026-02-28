@@ -1,10 +1,7 @@
 /**
- * Gemini AI 配图模块 — 支持多图生成与智能插入
+ * Gemini AI 配图模块 — 支持多图生成、智能插入与风格控制
  */
-const { ProxyAgent } = require('undici');
-
-const PROXY_URL = process.env.HTTPS_PROXY || process.env.HTTP_PROXY
-  || process.env.https_proxy || process.env.http_proxy;
+const { GeminiClient } = require('./gemini-client');
 
 const THEME_STYLES = {
   simple: '暖色调水彩插画风格，柔和的米色和金色调，温馨优雅',
@@ -19,12 +16,78 @@ const TONE_KEYWORDS = {
   reflective: '反思性、哲理、深度',
 };
 
+/** 5 种智能配图风格 */
+const IMAGE_STYLES = {
+  notion: {
+    name: 'notion',
+    label: 'Notion 图标风',
+    prompt: 'Clean icon-style illustration, flat design, simple geometric shapes, '
+      + 'limited color palette, Notion-style graphics, friendly and modern, white background',
+  },
+  warm: {
+    name: 'warm',
+    label: '暖色水彩',
+    prompt: 'Warm watercolor illustration, soft amber and golden tones, gentle brush strokes, '
+      + 'cozy and inviting atmosphere, hand-painted feel, cream paper texture',
+  },
+  minimal: {
+    name: 'minimal',
+    label: '黑白线描',
+    prompt: 'Black and white line art, minimal pen drawing, clean precise lines, '
+      + 'high contrast, editorial illustration style, elegant simplicity',
+  },
+  blueprint: {
+    name: 'blueprint',
+    label: '蓝图技术',
+    prompt: 'Technical blueprint style, dark blue background with white line drawings, '
+      + 'engineering diagram aesthetic, grid lines, precise measurements, technical drafting feel',
+  },
+  watercolor: {
+    name: 'watercolor',
+    label: '水彩画',
+    prompt: 'Full watercolor painting, rich colors blending naturally, visible brush strokes, '
+      + 'artistic wet-on-wet technique, expressive and painterly, gallery-quality illustration',
+  },
+};
+
+/** 配图密度配置 */
+const DENSITY_CONFIG = {
+  minimal: { maxImages: 2, minScore: 3, label: '精简 (1-2张)' },
+  balanced: { maxImages: 5, minScore: 2, label: '均衡 (3-5张)' },
+  rich: { maxImages: 10, minScore: 1, label: '丰富 (6+张)' },
+};
+
+/** 章节内容类型 */
+const CHAPTER_TYPES = {
+  infographic: {
+    keywords: /数据|统计|百分比|增长|下降|趋势|图表|报告|指标|KPI|\d+%/,
+    prompt: 'data visualization infographic style, charts and graphs feel',
+  },
+  scene: {
+    keywords: /故事|经历|那天|现场|走进|看到|眼前|记得|回忆|场景/,
+    prompt: 'narrative scene illustration, storytelling moment captured',
+  },
+  flowchart: {
+    keywords: /步骤|流程|过程|方法|阶段|先后|第一步|然后|接着|最终/,
+    prompt: 'process flow visualization, step-by-step visual guide',
+  },
+  comparison: {
+    keywords: /对比|比较|区别|差异|优劣|VS|不同|相同|选择|还是/,
+    prompt: 'comparison visualization, side-by-side contrast layout',
+  },
+  diagram: {
+    keywords: /架构|系统|模块|组件|层次|结构|网络|连接|接口|拓扑/,
+    prompt: 'technical architecture diagram, system structure visualization',
+  },
+};
+
+/** API 调用间隔 (ms)，避免速率限制 */
+const API_DELAY = 5000;
+
 class ImageGenerator {
   constructor({ apiKey, model, dryRun } = {}) {
-    this.apiKey = apiKey || process.env.GEMINI_API_KEY;
-    this.model = model || 'gemini-3-pro-image-preview';
+    this.client = new GeminiClient({ apiKey, model, dryRun });
     this.dryRun = dryRun || false;
-    this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
   }
 
   _detectTone(text) {
@@ -51,8 +114,24 @@ class ImageGenerator {
     return metaphors.slice(0, 5);
   }
 
-  _buildHeroPrompt(title, fullText, theme) {
-    const style = THEME_STYLES[theme] || THEME_STYLES.simple;
+  /** 识别章节内容类型 */
+  _identifyChapterType(chapter) {
+    const text = chapter.body || '';
+    let bestType = null;
+    let bestScore = 0;
+    for (const [type, config] of Object.entries(CHAPTER_TYPES)) {
+      const matches = (text.match(config.keywords) || []).length;
+      if (matches > bestScore) {
+        bestScore = matches;
+        bestType = type;
+      }
+    }
+    return bestType || 'scene'; // default to scene
+  }
+
+  _buildHeroPrompt(title, fullText, theme, imageStyle) {
+    const styleOverride = imageStyle && IMAGE_STYLES[imageStyle];
+    const style = styleOverride ? styleOverride.prompt : (THEME_STYLES[theme] || THEME_STYLES.simple);
     const tone = this._detectTone(fullText);
     const toneDesc = TONE_KEYWORDS[tone] || TONE_KEYWORDS.casual;
     const metaphors = this._extractMetaphors(fullText);
@@ -73,12 +152,15 @@ class ImageGenerator {
     ].join('\n');
   }
 
-  _buildChapterPrompt(chTitle, chBody, theme) {
-    const style = THEME_STYLES[theme] || THEME_STYLES.simple;
+  _buildChapterPrompt(chTitle, chBody, theme, imageStyle, chapterType) {
+    const styleOverride = imageStyle && IMAGE_STYLES[imageStyle];
+    const style = styleOverride ? styleOverride.prompt : (THEME_STYLES[theme] || THEME_STYLES.simple);
     const tone = this._detectTone(chBody);
     const toneDesc = TONE_KEYWORDS[tone] || TONE_KEYWORDS.casual;
     const metaphors = this._extractMetaphors(chBody);
     const summary = chBody.replace(/[#*_`>\[\]()]/g, '').slice(0, 300);
+    const typeHint = chapterType && CHAPTER_TYPES[chapterType]
+      ? `\n- 内容类型提示：${CHAPTER_TYPES[chapterType].prompt}` : '';
     return [
       `基于以下文章章节内容，设计一张配图。`,
       ``,
@@ -90,44 +172,8 @@ class ImageGenerator {
       `- 16:9 横版，适合公众号`,
       `- 不包含任何文字，纯视觉插画`,
       `- 风格：${style}，贴合${toneDesc}的情感基调`,
-      `- 画面应传达本章节的核心场景或隐喻`,
+      `- 画面应传达本章节的核心场景或隐喻${typeHint}`,
     ].join('\n');
-  }
-
-  async _callGemini(prompt) {
-    if (!this.apiKey) {
-      throw new Error('需要 GEMINI_API_KEY (--api-key 或环境变量 GEMINI_API_KEY)');
-    }
-    const url = `${this.baseUrl}/models/${this.model}:generateContent?key=${this.apiKey}`;
-    const fetchOpts = {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
-      }),
-    };
-    if (PROXY_URL) fetchOpts.dispatcher = new ProxyAgent(PROXY_URL);
-    const res = await fetch(url, fetchOpts);
-    if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`Gemini API 错误 (${res.status}): ${err}`);
-    }
-    return res.json();
-  }
-
-  _extractImages(response) {
-    const images = [];
-    const parts = response?.candidates?.[0]?.content?.parts || [];
-    for (const part of parts) {
-      if (part.inlineData) {
-        images.push({
-          mimeType: part.inlineData.mimeType || 'image/png',
-          data: part.inlineData.data,
-        });
-      }
-    }
-    return images;
   }
 
   _extractTitleAndSummary(markdown) {
@@ -193,8 +239,8 @@ class ImageGenerator {
     }
 
     console.error('正在生成 AI 配图...');
-    const response = await this._callGemini(prompt);
-    const images = this._extractImages(response);
+    const response = await this.client.callGemini(prompt);
+    const images = this.client.extractImages(response);
 
     if (images.length === 0) {
       console.error('警告: Gemini 未返回图片');
@@ -204,28 +250,72 @@ class ImageGenerator {
     return images[0];
   }
 
-  /** 多图生成：头图 + 选定章节配图 */
-  async generateMultiple(markdown, theme = 'simple') {
+  /** 评估章节是否适合配图，返回分数 */
+  _scoreChapterForImage(chapter) {
+    let score = 0;
+    const text = chapter.body || '';
+    // 有比喻/意象 → 适合配图
+    if (this._extractMetaphors(text).length > 0) score += 3;
+    // 有具体场景描写（时间、地点）→ 适合
+    if (/凌晨|早上|晚上|深夜|那天|现场|眼前|走进|打开|坐在/.test(text)) score += 2;
+    // 有数据对比/极端数字 → 适合可视化
+    if (/\d{3,}/.test(text)) score += 1;
+    // 视觉潜力关键词加分
+    if (/数据可视化|对比|流程|时间线|架构图|结构|层次/.test(text)) score += 2;
+    if (/步骤|方法|过程|阶段|分类|排名/.test(text)) score += 1;
+    // 太短的章节不配图
+    if (text.length < 100) score -= 3;
+    // 纯对话/引用章节不配图
+    if ((text.match(/"/g) || []).length > 6) score -= 1;
+    // 更积极地跳过结尾/FAQ章节
+    const title = chapter.title || '';
+    if (/FAQ|常见问题|问答|Q&A/i.test(title)) score -= 2;
+    if (/小结|总结|结论|写在最后|结语|结尾|参考|附录|致谢|引用|注释/.test(title)) score -= 3;
+    return score;
+  }
+
+  /** 多图生成：头图 + 选定章节配图，支持密度和风格控制 */
+  async generateMultiple(markdown, theme = 'simple', options = {}) {
+    const { density = 'balanced', imageStyle } = options;
+    const densityCfg = DENSITY_CONFIG[density] || DENSITY_CONFIG.balanced;
     const { title, summary } = this._extractTitleAndSummary(markdown);
     const chapters = this._extractChapters(markdown);
 
-    // 选择需要配图的章节（跳过"写在最后"等收尾章节）
-    const skipPatterns = /写在最后|总结|结语|结尾|最后|参考|附录|致谢|引用|注释/;
-    const imageChapters = chapters.filter(ch => !skipPatterns.test(ch.title));
+    // 选择需要配图的章节（根据密度配置）
+    const skipPatterns = /写在最后|总结|结语|结尾|最后|参考|附录|致谢|引用|注释|FAQ|常见问题/;
+    const scoredChapters = chapters
+      .filter(ch => !skipPatterns.test(ch.title))
+      .map(ch => ({
+        ...ch,
+        imgScore: this._scoreChapterForImage(ch),
+        chapterType: this._identifyChapterType(ch),
+      }))
+      .filter(ch => ch.imgScore >= densityCfg.minScore)
+      .sort((a, b) => b.imgScore - a.imgScore)
+      .slice(0, densityCfg.maxImages - 1); // -1 for hero image
+
+    console.error(`章节配图筛选: ${chapters.length} 个章节 → ${scoredChapters.length} 个配图 [${densityCfg.label}]`);
+    if (imageStyle) console.error(`配图风格: ${IMAGE_STYLES[imageStyle]?.label || imageStyle}`);
 
     // 头图 prompt
     const prompts = [{
       type: 'hero',
       title: title,
-      prompt: this._buildHeroPrompt(title, markdown, theme),
+      prompt: this._buildHeroPrompt(title, markdown, theme, imageStyle),
     }];
 
-    // 章节配图 prompts
-    for (const ch of imageChapters) {
+    // 章节配图 prompts（按原文顺序排列）
+    const orderedChapters = chapters.filter(ch =>
+      scoredChapters.some(sc => sc.title === ch.title)
+    ).map(ch => scoredChapters.find(sc => sc.title === ch.title));
+
+    for (const ch of orderedChapters) {
       prompts.push({
         type: 'chapter',
         title: ch.title,
-        prompt: this._buildChapterPrompt(ch.title, ch.body || ch.summary, theme),
+        prompt: this._buildChapterPrompt(
+          ch.title, ch.body || ch.summary, theme, imageStyle, ch.chapterType
+        ),
       });
     }
 
@@ -244,8 +334,8 @@ class ImageGenerator {
       const p = prompts[i];
       console.error(`  [${i + 1}/${prompts.length}] ${p.type}: ${p.title}`);
       try {
-        const response = await this._callGemini(p.prompt);
-        const images = this._extractImages(response);
+        const response = await this.client.callGemini(p.prompt);
+        const images = this.client.extractImages(response);
         if (images.length > 0) {
           results.push({ ...p, image: images[0] });
         } else {
@@ -253,6 +343,11 @@ class ImageGenerator {
         }
       } catch (err) {
         console.error(`    错误: ${err.message}`);
+      }
+
+      // Rate limiting delay between requests (except after last)
+      if (i < prompts.length - 1) {
+        await new Promise(r => setTimeout(r, API_DELAY));
       }
     }
     console.error(`已生成 ${results.length} 张配图`);
@@ -304,4 +399,4 @@ class ImageGenerator {
   }
 }
 
-module.exports = { ImageGenerator };
+module.exports = { ImageGenerator, IMAGE_STYLES, DENSITY_CONFIG };
