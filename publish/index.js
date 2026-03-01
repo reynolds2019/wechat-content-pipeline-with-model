@@ -84,6 +84,24 @@ class PublishManager {
 
     return result;
   }
+
+  /**
+   * List drafts for diagnostics.
+   * @param {object} options
+   * @param {string} [options.appId]
+   * @param {string} [options.appSecret]
+   * @param {number} [options.offset=0]
+   * @param {number} [options.count=20]
+   * @returns {Promise<object>} Draft list from WeChat API
+   */
+  async listDrafts(options = {}) {
+    const publisher = new WeChatApiPublisher({
+      appId: options.appId,
+      appSecret: options.appSecret,
+    });
+    const accessToken = await publisher.getAccessToken();
+    return publisher.listDrafts(accessToken, options.offset || 0, options.count || 20);
+  }
 }
 
 module.exports = { PublishManager };

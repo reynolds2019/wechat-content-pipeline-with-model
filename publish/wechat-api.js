@@ -160,6 +160,23 @@ class WeChatApiPublisher {
   }
 
   /**
+   * List drafts for diagnostics.
+   * @param {string} accessToken
+   * @param {number} offset - Starting position (default 0)
+   * @param {number} count - Number of items to return (default 20, max 20)
+   * @returns {Promise<{total_count: number, item_count: number, item: Array}>}
+   */
+  async listDrafts(accessToken, offset = 0, count = 20) {
+    const url = `${BASE_URL}/cgi-bin/draft/batchget?access_token=${accessToken}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ offset, count, no_content: 1 }),
+    });
+    return await res.json();
+  }
+
+  /**
    * Extract base64 images from HTML, upload each via uploadNewsImage,
    * and replace the src with the returned WeChat URL.
    * Also uploads the first image as permanent material for thumb_media_id.

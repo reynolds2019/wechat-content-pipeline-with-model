@@ -291,6 +291,9 @@ export WECHAT_APP_SECRET="your-app-secret"
 
 需要在微信公众平台开通开发者权限并配置 IP 白名单。
 
+> **注意**: AppID 必须与你在微信公众平台后台登录的账号一致。
+> 可在「设置与开发 → 基本配置」中确认 AppID。
+
 ## SKILL 集成
 
 本套件包含 6 个 Claude Code SKILL，安装后可在 Claude Code 中通过自然语言触发完整的内容生产工作流。

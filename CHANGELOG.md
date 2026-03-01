@@ -1,5 +1,17 @@
 # wx-format Changelog
 
+## v3.0.2 (2026-03-01)
+
+### Bug Fixes
+- **修复 AppID 配置错误**: ~/.zshrc 中的 WECHAT_APP_ID 指向了错误的公众号 (wxe3ce820414aa5a82)，
+  实际应为 wxa3bc520da2fc5e75。草稿创建在错误账号上导致后台不可见。
+
+### Enhancements
+- **新增 `listDrafts()` 诊断方法**: WeChatApiPublisher 和 PublishManager 均支持查询草稿列表，
+  方便排查草稿可见性问题。
+
+---
+
 ## v3.0.1 (2026-02-28) — Bug Fixes + Shared Gemini Client
 
 ### Bug Fixes
