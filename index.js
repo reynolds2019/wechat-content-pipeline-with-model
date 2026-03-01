@@ -11,7 +11,7 @@ const program = new Command();
 program
   .name('wx-format')
   .description('微信公众号 Markdown 排版工具 v3.0')
-  .version('3.0.0')
+  .version('3.0.1')
   .enablePositionalOptions()
   .argument('[input]', 'Markdown 文件路径 (省略则从 stdin 读取)')
   .option('-t, --theme <name>', '主题名称或自定义主题 JSON 路径', 'simple')
@@ -189,7 +189,7 @@ program
           const { default: clipboardy } = await import('clipboardy');
           await clipboardy.write(html);
           console.log('已复制到剪贴板 (可直接粘贴到公众号编辑器)');
-        } catch { console.log('剪贴板复制失败'); }
+        } catch { console.error('剪贴板复制失败'); }
       }
       if (options.preview) {
         const { exec } = require('child_process');
@@ -309,13 +309,13 @@ program
       const fullHtml = wrapHtml(html, options.theme);
       if (options.output) {
         fs.writeFileSync(path.resolve(options.output), fullHtml, 'utf-8');
-        console.error(`已生成: ${options.output}`);
+        console.log(`已生成: ${options.output}`);
       } else {
         process.stdout.write(fullHtml);
       }
     } else if (options.output) {
       fs.writeFileSync(path.resolve(options.output), result, 'utf-8');
-      console.error(`已生成: ${options.output}`);
+      console.log(`已生成: ${options.output}`);
     } else {
       process.stdout.write(result + '\n');
     }

@@ -277,7 +277,7 @@ export OPENAI_API_KEY="your-key"
 export OPENAI_API_BASE="https://api.openai.com/v1"  # 可选，自定义端点
 
 # Claude
-export ANTHROPIC_API_KEY="your-key"
+export CLAUDE_API_KEY="your-key"
 ```
 
 > Gemini 是图像生成（封面图、配图、信息图、小红书卡片）的唯一 Provider。文本润色和写作支持全部 4 种 Provider。
