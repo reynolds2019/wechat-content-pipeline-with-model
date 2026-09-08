@@ -1,7 +1,6 @@
 /**
- * Gemini AI 配图模块 — 支持多图生成、智能插入与风格控制
+ * AI 配图模块 — 支持多图生成、智能插入与风格控制
  */
-const { GeminiClient } = require('./gemini-client');
 
 const THEME_STYLES = {
   simple: '暖色调水彩插画风格，柔和的米色和金色调，温馨优雅',
@@ -83,10 +82,11 @@ const CHAPTER_TYPES = {
 
 /** API 调用间隔 (ms)，避免速率限制 */
 const API_DELAY = 5000;
+const { createImageClient } = require('./image-client-factory');
 
 class ImageGenerator {
-  constructor({ apiKey, model, dryRun, baseUrl } = {}) {
-    this.client = new GeminiClient({ apiKey, model, dryRun, baseUrl });
+  constructor({ apiKey, model, dryRun, baseUrl, provider } = {}) {
+    this.client = createImageClient({ apiKey, model, dryRun, baseUrl, provider });
     this.dryRun = dryRun || false;
   }
 

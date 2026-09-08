@@ -2,12 +2,12 @@
  * 封面图生成模块 — CoverGenerator
  * 基于 Gemini 图像生成 API，支持 5 风格 × 6 配色 × 3 比例
  */
-const { GeminiClient } = require('../gemini-client');
+const { createImageClient } = require('../image-client-factory');
 const { STYLES, PALETTES, RATIOS, buildCoverPrompt, recommendStyle } = require('./prompts');
 
 class CoverGenerator {
-  constructor({ apiKey, model, dryRun, baseUrl } = {}) {
-    this.client = new GeminiClient({ apiKey, model, dryRun, baseUrl });
+  constructor({ apiKey, model, dryRun, baseUrl, provider } = {}) {
+    this.client = createImageClient({ apiKey, model, dryRun, baseUrl, provider });
     this.dryRun = dryRun || false;
   }
 

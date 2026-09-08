@@ -2,13 +2,13 @@
  * 信息图生成模块 — InfographicGenerator
  * 21 布局 × 20 风格，基于 Gemini 图像生成 API
  */
-const { GeminiClient } = require('../gemini-client');
+const { createImageClient } = require('../image-client-factory');
 const { LAYOUTS, recommendLayouts } = require('./layouts');
 const { STYLES, RATIOS, buildInfographicPrompt } = require('./prompts');
 
 class InfographicGenerator {
-  constructor({ apiKey, model, dryRun, baseUrl } = {}) {
-    this.client = new GeminiClient({ apiKey, model, dryRun, baseUrl });
+  constructor({ apiKey, model, dryRun, baseUrl, provider } = {}) {
+    this.client = createImageClient({ apiKey, model, dryRun, baseUrl, provider });
     this.dryRun = dryRun || false;
   }
 

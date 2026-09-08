@@ -3,15 +3,15 @@
  * 生成 9:16 竖版卡片系列，10 风格 × 8 布局
  * 支持视觉一致性参考链
  */
-const { GeminiClient } = require('../gemini-client');
+const { createImageClient } = require('../image-client-factory');
 const { STYLES, LAYOUTS, buildXhsPrompt } = require('./prompts');
 
 /** API 调用间隔 (ms)，避免速率限制 */
 const API_DELAY = 5000;
 
 class XhsGenerator {
-  constructor({ apiKey, model, dryRun, baseUrl } = {}) {
-    this.client = new GeminiClient({ apiKey, model, dryRun, baseUrl });
+  constructor({ apiKey, model, dryRun, baseUrl, provider } = {}) {
+    this.client = createImageClient({ apiKey, model, dryRun, baseUrl, provider });
     this.dryRun = dryRun || false;
   }
 

@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+if (typeof globalThis.File === 'undefined') {
+  try { globalThis.File = require('node:buffer').File; } catch (_) {}
+}
 const fs = require('fs');
 const path = require('path');
 const { Command } = require('commander');

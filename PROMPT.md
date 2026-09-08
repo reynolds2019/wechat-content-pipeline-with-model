@@ -6,14 +6,15 @@
 
 ## 验证文本润色和配图生成
 ```
-请验证文本润色和配图生成这两个功能是否正常。输出内容放置到output目录我验证（不要修改当前工程逻辑，应该是调用以后的输出流形成文件）。
-你想要验证的话可以使用这些参数：
-# One-API 大模型聚合网关端点
-llm_base_url: "http://192.168.8.206:3001/v1"
-# One-API 主大模型认证 API Key
-api_key: "sk-S9JGFnHuV1EFvhhX73E4D2EcF1D44e2eB82936CaF3CbAfD2"
-# 通用对话与 Agent 思考底座模型
-llm_model: "qwen3.6-flash"
-# 默认生图模型
-image_model: "wan2.7-image"
+请验证文本润色和配图生成这两个功能是否正常。
+- 使用的大语言模型和文生图模型脚本如下：
+- 大语言模型验证
+```
+curl http://192.168.8.206:3002/v1/chat/completions -H "Content-Type: application/json" -H "Authorization: Bearer sk-oKSP4ZeeWvITB65yGpodcldvzjYema6gt9OU0qtCjeT94EGx" -d "{\"model\":\"qwen3.6-flash\",\"messages\":[{\"role\":\"user\",\"content\":\"Say hello in one sentence.\"}]}"
+```
+- 文生图模型验证
+```
+curl http://192.168.8.206:3002/v1/images/generations -H "Content-Type: application/json" -H "Authorization: Bearer sk-oKSP4ZeeWvITB65yGpodcldvzjYema6gt9OU0qtCjeT94EGx" -d "{\"model\":\"wan2.7-image\",\"prompt\":\"一只在太空漫步的猫，赛博朋克风格\",\"n\":1,\"size\":\"1024x1024\"}"
+```
+- 代码迭代原则：支持新的大模型可新增代码文件或代码块，  如：原有 gemini-client.js 尽量减少修改，可新增 qwen-client.js 作为分支逻辑，便于后续维护。
 ```

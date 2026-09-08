@@ -3,3 +3,4 @@ node_modules/
 .DS_Store
 article-raw.md
 RESEARCH.md
+output/
