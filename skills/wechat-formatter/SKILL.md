@@ -45,6 +45,8 @@ allowed-tools: Read, Write, Bash(node:*), Bash(cat:*), Bash(open:*)
 |------|--------|------|
 | polish | 无 | AI provider: gemini/deepseek/openai/claude |
 | polish-type | grammar | grammar/style/title/structure/deai/readability/summary/seo |
+| model | 无 | 自定义大模型名称 (覆盖默认模型) |
+| base-url | 无 | 自定义 API Base URL |
 | api-key | 无 | AI API Key |
 | dry-run | false | 仅打印 prompt，不调用 API |
 | prompt-file | 无 | 自定义 prompt 文件路径 |

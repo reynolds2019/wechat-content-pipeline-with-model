@@ -113,6 +113,9 @@ done
 | `-p, --preview` | 浏览器预览 | - |
 | `--polish <provider>` | AI 润色（gemini / deepseek / openai / claude） | - |
 | `--polish-type <type>` | 润色类型（见下表） | grammar |
+| `--model <model>` | AI 大模型名称（覆盖默认模型，如 deepseek-reasoner） | - |
+| `--base-url <url>` | 自定义 AI API Base URL | - |
+| `--api-key <key>` | AI 润色 / 生成 API Key | - |
 | `--normalize` | 中文文本基本规范化 | - |
 | `--normalize-full` | 全量规范化（引号 / 标题 / 空行 / 列表 / 标点 / 间距） | - |
 | `--important` | !important 样式强化（提升微信兼容性） | - |

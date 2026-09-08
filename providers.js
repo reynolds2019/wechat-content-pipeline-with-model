@@ -34,17 +34,36 @@ const PROVIDERS = {
   },
 };
 
-function createClient(provider, apiKey) {
-  const config = PROVIDERS[provider];
-  if (!config) throw new Error(`不支持的 provider: ${provider}。可选: ${Object.keys(PROVIDERS).join(', ')}`);
-  const key = apiKey || process.env[config.envKey];
-  if (!key || !key.trim()) throw new Error(`缺少 API Key，请通过 --api-key 或环境变量 ${config.envKey} 提供`);
+function createClient(provider, options = {}) {
+  const optsObj = typeof options === 'string' ? { apiKey: options } : (options || {});
+  const config = PROVIDERS[provider] || {};
 
-  const opts = { baseURL: config.baseURL, apiKey: key };
-  if (config.needsProxy && PROXY_URL) {
-    opts.httpAgent = new HttpsProxyAgent(PROXY_URL);
+  const apiKey = optsObj.apiKey || (config.envKey ? process.env[config.envKey] : undefined);
+  const baseURL = optsObj.baseUrl || optsObj.baseURL || config.baseURL;
+  const model = optsObj.model || config.model;
+
+  if (!PROVIDERS[provider] && !baseURL) {
+    throw new Error(`不支持的 provider: ${provider}。可选: ${Object.keys(PROVIDERS).join(', ')}，或指定 --base-url`);
   }
-  return { client: new OpenAI(opts), model: config.model };
+
+  if (!apiKey || !apiKey.trim()) {
+    const envInfo = config.envKey ? ` 或环境变量 ${config.envKey}` : '';
+    throw new Error(`缺少 API Key，请通过 --api-key${envInfo} 提供`);
+  }
+
+  if (!baseURL) {
+    throw new Error(`缺少 Base URL，请通过 --base-url 提供`);
+  }
+
+  if (!model) {
+    throw new Error(`缺少 Model，请通过 --model 提供`);
+  }
+
+  const clientOpts = { baseURL, apiKey };
+  if ((config.needsProxy || optsObj.needsProxy) && PROXY_URL) {
+    clientOpts.httpAgent = new HttpsProxyAgent(PROXY_URL);
+  }
+  return { client: new OpenAI(clientOpts), model, baseURL };
 }
 
 /**

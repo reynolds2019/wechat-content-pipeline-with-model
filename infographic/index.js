@@ -7,8 +7,8 @@ const { LAYOUTS, recommendLayouts } = require('./layouts');
 const { STYLES, RATIOS, buildInfographicPrompt } = require('./prompts');
 
 class InfographicGenerator {
-  constructor({ apiKey, model, dryRun } = {}) {
-    this.client = new GeminiClient({ apiKey, model, dryRun });
+  constructor({ apiKey, model, dryRun, baseUrl } = {}) {
+    this.client = new GeminiClient({ apiKey, model, dryRun, baseUrl });
     this.dryRun = dryRun || false;
   }
 

@@ -73,13 +73,15 @@ class ContentPolisher {
   constructor(options = {}) {
     this.provider = options.provider || 'gemini';
     this.apiKey = options.apiKey;
+    this.baseUrl = options.baseUrl;
+    this.model = options.model;
     this.polishType = options.polishType || 'grammar';
     this.dryRun = options.dryRun || false;
     this.promptFile = options.promptFile || null;
-    if (!PROVIDERS[this.provider]) {
-      throw new Error(`不支持的 provider: ${this.provider}。可选: ${Object.keys(PROVIDERS).join(', ')}`);
+    if (!PROVIDERS[this.provider] && !this.baseUrl) {
+      throw new Error(`不支持的 provider: ${this.provider}。可选: ${Object.keys(PROVIDERS).join(', ')}，或指定 baseUrl`);
     }
-    this.config = PROVIDERS[this.provider];
+    this.config = PROVIDERS[this.provider] || { model: this.model, baseURL: this.baseUrl };
   }
 
   _getPrompt() {
@@ -130,9 +132,13 @@ class ContentPolisher {
       ? prompt.replace('{{content}}', markdown)
       : prompt + markdown;
 
+    const activeModel = this.model || this.config.model || 'default-model';
+    const activeBaseUrl = this.baseUrl || this.config.baseURL || 'default-url';
+
     if (this.dryRun) {
       console.log('=== DRY RUN: 润色 Prompt ===');
-      console.log(`Provider: ${this.provider} (${this.config.model})`);
+      console.log(`Provider: ${this.provider} (${activeModel})`);
+      console.log(`Base URL: ${activeBaseUrl}`);
       console.log(`类型: ${this.polishType}`);
       console.log('--- Prompt ---');
       console.log(fullPrompt.slice(0, 500) + (fullPrompt.length > 500 ? '\n...(truncated)' : ''));
@@ -140,7 +146,11 @@ class ContentPolisher {
       return markdown;
     }
 
-    const { client, model } = createClient(this.provider, this.apiKey);
+    const { client, model } = createClient(this.provider, {
+      apiKey: this.apiKey,
+      baseUrl: this.baseUrl,
+      model: this.model,
+    });
     const temperature = ['style', 'deai_rewrite'].includes(this.polishType) ? 0.5 : 0.3;
 
     try {

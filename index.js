@@ -22,6 +22,8 @@ program
   .option('-l, --list-themes', '列出所有可用主题')
   .option('--polish <provider>', 'AI 润色 (gemini|deepseek|openai|claude)')
   .option('--polish-type <type>', '润色类型 (grammar|style|title|structure|deai|readability|summary|seo)', 'grammar')
+  .option('--model <model>', 'AI 大模型名称 (覆盖默认模型名称)')
+  .option('--base-url <url>', 'AI 服务 API Base URL')
   .option('--api-key <key>', 'AI 润色 API Key')
   .option('--dry-run', '仅打印润色 prompt，不调用 API')
   .option('--prompt-file <path>', '自定义润色 prompt 文件路径 (支持 {{content}} 占位符)')
@@ -109,6 +111,8 @@ program
       const polisher = new ContentPolisher({
         provider: options.polish,
         apiKey: options.apiKey,
+        baseUrl: options.baseUrl,
+        model: options.model,
         polishType: options.polishType,
         dryRun: options.dryRun,
         promptFile: options.promptFile,
@@ -144,6 +148,7 @@ program
         const imgGen = new ImageGenerator({
           apiKey: options.apiKey,
           model: options.imageModel,
+          baseUrl: options.baseUrl,
           dryRun: options.dryRun,
         });
         const imageResults = await imgGen.generateMultiple(markdown, theme, {
@@ -160,6 +165,7 @@ program
         const coverGen = new CoverGenerator({
           apiKey: options.apiKey,
           model: options.imageModel,
+          baseUrl: options.baseUrl,
           dryRun: options.dryRun,
         });
         const coverImage = await coverGen.generate(markdown, {

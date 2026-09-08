@@ -10,11 +10,11 @@ const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 2000;
 
 class GeminiClient {
-  constructor({ apiKey, model, dryRun } = {}) {
+  constructor({ apiKey, model, dryRun, baseUrl } = {}) {
     this.apiKey = apiKey || process.env.GEMINI_API_KEY;
     this.model = model || 'gemini-3-pro-image-preview';
     this.dryRun = dryRun || false;
-    this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+    this.baseUrl = baseUrl || 'https://generativelanguage.googleapis.com/v1beta';
   }
 
   /**

@@ -6,8 +6,8 @@ const { GeminiClient } = require('../gemini-client');
 const { STYLES, PALETTES, RATIOS, buildCoverPrompt, recommendStyle } = require('./prompts');
 
 class CoverGenerator {
-  constructor({ apiKey, model, dryRun } = {}) {
-    this.client = new GeminiClient({ apiKey, model, dryRun });
+  constructor({ apiKey, model, dryRun, baseUrl } = {}) {
+    this.client = new GeminiClient({ apiKey, model, dryRun, baseUrl });
     this.dryRun = dryRun || false;
   }
 

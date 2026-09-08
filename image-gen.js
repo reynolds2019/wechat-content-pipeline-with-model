@@ -85,8 +85,8 @@ const CHAPTER_TYPES = {
 const API_DELAY = 5000;
 
 class ImageGenerator {
-  constructor({ apiKey, model, dryRun } = {}) {
-    this.client = new GeminiClient({ apiKey, model, dryRun });
+  constructor({ apiKey, model, dryRun, baseUrl } = {}) {
+    this.client = new GeminiClient({ apiKey, model, dryRun, baseUrl });
     this.dryRun = dryRun || false;
   }
 

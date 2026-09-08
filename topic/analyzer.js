@@ -4,7 +4,7 @@
  */
 const { createClient, callAI } = require('../providers');
 
-async function analyzeTopic({ niche = '通用', provider = 'gemini', apiKey, dryRun }) {
+async function analyzeTopic({ niche = '通用', provider = 'gemini', apiKey, baseUrl, model: customModel, dryRun }) {
   const prompt = `你是微信公众号选题专家。请根据以下领域生成 5 个最适合公众号创作的选题建议：
 
 目标领域：${niche}
@@ -27,7 +27,7 @@ async function analyzeTopic({ niche = '通用', provider = 'gemini', apiKey, dry
     return null;
   }
 
-  const { client, model } = createClient(provider, apiKey);
+  const { client, model } = createClient(provider, { apiKey, baseUrl, model: customModel });
   return await callAI(client, model, prompt, { temperature: 0.7 });
 }
 

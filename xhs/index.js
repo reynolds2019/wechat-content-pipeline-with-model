@@ -10,8 +10,8 @@ const { STYLES, LAYOUTS, buildXhsPrompt } = require('./prompts');
 const API_DELAY = 5000;
 
 class XhsGenerator {
-  constructor({ apiKey, model, dryRun } = {}) {
-    this.client = new GeminiClient({ apiKey, model, dryRun });
+  constructor({ apiKey, model, dryRun, baseUrl } = {}) {
+    this.client = new GeminiClient({ apiKey, model, dryRun, baseUrl });
     this.dryRun = dryRun || false;
   }
 

@@ -15,15 +15,16 @@ async function askConfirm(prompt) {
   });
 }
 
-async function runWrite({ viewpoints, type = 'opinion', provider = 'gemini', apiKey, dryRun, noConfirm, outlineOnly, titleCandidates = 5 }) {
-  const config = PROVIDERS[provider];
-  if (!config) throw new Error(`不支持的 provider: ${provider}。可选: ${Object.keys(PROVIDERS).join(', ')}`);
+async function runWrite({ viewpoints, type = 'opinion', provider = 'gemini', apiKey, baseUrl, model: customModel, dryRun, noConfirm, outlineOnly, titleCandidates = 5 }) {
+  if (!PROVIDERS[provider] && !baseUrl) throw new Error(`不支持的 provider: ${provider}。可选: ${Object.keys(PROVIDERS).join(', ')}，或指定 baseUrl`);
+  const config = PROVIDERS[provider] || { model: customModel, baseURL: baseUrl };
+  const activeModel = customModel || config.model;
 
   const outlinePrompt = buildOutlinePrompt(type, viewpoints, { titleCandidates });
 
   if (dryRun) {
     console.log('=== DRY RUN: 写作 Prompt ===');
-    console.log(`Provider: ${provider} (${config.model})`);
+    console.log(`Provider: ${provider} (${activeModel})`);
     console.log(`文章类型: ${type}`);
     console.log('--- 大纲 Prompt ---');
     console.log(outlinePrompt.slice(0, 500) + (outlinePrompt.length > 500 ? '\n...(truncated)' : ''));
@@ -31,7 +32,7 @@ async function runWrite({ viewpoints, type = 'opinion', provider = 'gemini', api
     return null;
   }
 
-  const { client, model } = createClient(provider, apiKey);
+  const { client, model } = createClient(provider, { apiKey, baseUrl, model: customModel });
 
   // Step 1: 生成大纲
   console.error('正在生成大纲...');
